@@ -1,4 +1,7 @@
-import DataLoader, TensorDataset
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 from sklearn.datasets import make_classification
 from sklearn.preprocessing import StandardScaler
@@ -8,66 +11,84 @@ from ignite.metrics import Accuracy, Loss
 
 import pandas as pd
 
+from dataset import DNSExfiltrationDataset
+
 class BinaryClassifier(nn.Module):
     def __init__(self):
         super(BinaryClassifier, self).__init__()
-        self.layer_1 = nn.Linear(4, 16)
-        self.layer_2 = nn.Linear(16, 8)
-        self.layer_out = nn.Linear(8, 1)
-        self.relu = nn.ReLU()
+        self.net = nn.Sequential(
+            nn.Linear(4, 16),
+            nn.ReLU(),
+            nn.Linear(16, 8),
+            nn.ReLU(),
+            nn.Linear(8, 1)
+        )        
         
     def forward(self, x):
-        return self.layer_out(self.relu(self.layer_2(self.relu(self.layer_1(x)))))
+        out = self.net(x)
+        return out.view(-1)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = BinaryClassifier().to(device)
 
-df = pd.read_csv('../dataset/training.csv')
-X = df.iloc[:, [1]]  
-y = df.iloc[:, 0]
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
-
-train_dataset = TensorDataset(torch.tensor(X_train, dtype=torch.float32), torch.tensor(y_train, dtype=torch.float32).unsqueeze(1))
-test_dataset = TensorDataset(torch.tensor(X_test, dtype=torch.float32), torch.tensor(y_test, dtype=torch.float32).unsqueeze(1))
+train_dataset = DNSExfiltrationDataset('../dataset/training.csv')
+val_dataset = DNSExfiltrationDataset('../dataset/validating.csv')
 
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+val_loader = DataLoader(val_dataset, batch_size=64, shuffle=True)
 
 criterion = nn.BCEWithLogitsLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.005)
+optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
+def train_step(engine, batch):
+    model.train()
+    x, y = batch
+    x = x.to(device)
+    y = y.to(device).float()
+    optimizer.zero_grad()
+    logits = model(x)
+    loss = criterion(logits, y)
+    loss.backward()
+    optimizer.step()
+    return loss.item()
 
-def binary_output_transform(output):
+trainer = Engine(train_step)
+
+def eval_step(engine, batch):
+    model.eval()
+    with torch.no_grad():
+        x, y = batch
+        x = x.to(device)
+        y = y.to(device)
+        logits = model(x)
+        return logits, y
+
+evaluator_train = Engine(eval_step)
+evaluator_val = Engine(eval_step)
+
+def accuracy_output_transform(output):
     y_pred, y = output
-    y_pred = torch.round(torch.sigmoid(y_pred)) # continuous to discrete
-    return y_pred, y
+    preds = torch.round(torch.sigmoid(y_pred)).view(-1).long()
+    targets = y.view(-1).long()
+    return preds, targets
 
-trainer = create_supervised_trainer(model, optimizer, criterion, device=device)
+def loss_output_transform(output):
+    y_pred, y = output
+    return y_pred.view(-1), y.view(-1).float()
 
-val_metrics = {
-    "accuracy": Accuracy(output_transform=binary_output_transform),
-    "loss": Loss(criterion)
-}
-evaluator = create_supervised_evaluator(model, metrics=val_metrics, device=device)
+Accuracy(output_transform=accuracy_output_transform).attach(evaluator_train, "accuracy")
+Loss(criterion, output_transform=loss_output_transform).attach(evaluator_train, "loss")
+
+Accuracy(output_transform=accuracy_output_transform).attach(evaluator_val, "accuracy")
+Loss(criterion, output_transform=loss_output_transform).attach(evaluator_val, "loss")
 
 @trainer.on(Events.EPOCH_COMPLETED)
-def log_training_results(engine):
-    epoch = engine.state.epoch
-    if epoch % 20 == 0:
-        evaluator.run(train_loader)
-        metrics = evaluator.state.metrics
-        print(f"Epoch {epoch:03d} | Train Loss: {metrics['loss']:.4f} | Train Acc: {metrics['accuracy']*100:.2f}%")
+def run_validation(engine):
+    evaluator_train.run(train_loader)
+    train_m = evaluator_train.state.metrics
+    evaluator_val.run(val_loader)
+    val_m = evaluator_val.state.metrics
+    print(f"Epoch {engine.state.epoch} | Train Loss: {train_m['loss']:.4f} | Train Acc: {train_m['accuracy']*100:.2f}% | Val Loss: {val_m['loss']:.4f} | Val Acc: {val_m['accuracy']*100:.2f}%")
 
-@trainer.on(Events.COMPLETED)
-def log_final_results(engine):
-    evaluator.run(test_loader)
-    metrics = evaluator.state.metrics
-    print(f"\n[Final Metrics] Test Loss: {metrics['loss']:.4f} | Test Accuracy: {metrics['accuracy']*100:.2f}%")
-
-trainer.run(train_loader, max_epochs=100)
-
+trainer.run(train_loader, max_epochs=10)
+torch.save(model.state_dict(), "model.pth")

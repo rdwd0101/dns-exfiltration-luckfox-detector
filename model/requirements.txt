@@ -1,6 +1,6 @@
 pandas
 scikit-learn
-pytorch
+torch
 pytorch-ignite
 numpy
 

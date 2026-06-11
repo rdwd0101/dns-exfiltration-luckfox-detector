@@ -3,6 +3,8 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
+#include "features.hpp"
+
 #define DNS_PORT 53
 #define BUFFER_SIZE 1024
 

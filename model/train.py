@@ -1,15 +1,11 @@
+import os
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from sklearn.model_selection import train_test_split
-from sklearn.datasets import make_classification
-from sklearn.preprocessing import StandardScaler
-
 from ignite.engine import Engine, Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import Accuracy, Loss
-
 import pandas as pd
 
 from dataset import DNSExfiltrationDataset
@@ -32,11 +28,12 @@ class BinaryClassifier(nn.Module):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = BinaryClassifier().to(device)
 
-train_path = "../dataset/features.csv"
-val_path = "../dataset/features_val.csv"
+parent_path = os.path.abspath(os.path.pardir)
+train_path = os.path.join(parent_path, "dataset/features.csv")
+val_path = os.path.join(parent_path, "dataset/features_val.csv")
 
-train_scaler_path = "../dataset/training_scaler.npz"
-val_scaler_path = "../dataset/validating_scaler.npz"
+train_scaler_path = os.path.join(parent_path, "dataset/training_scaler.npz")
+val_scaler_path = os.path.join(parent_path, "dataset/validating_scaler.npz")
 
 train_df = pd.read_csv(train_path)
 train_val = pd.read_csv(val_path)
@@ -104,14 +101,16 @@ def run_validation(engine):
     print(f"Epoch {engine.state.epoch} | Train Loss: {train_m['loss']:.4f} | Train Acc: {train_m['accuracy']*100:.2f}% | Val Loss: {val_m['loss']:.4f} | Val Acc: {val_m['accuracy']*100:.2f}%")
 
 trainer.run(train_loader, max_epochs=10)
-torch.save(model.state_dict(), "model.pth")
 
+model_path = os.path.abspath(os.path.join(os.path.curdir, "model.pth"))
+torch.save(model.state_dict(), model_path)
+export_model_path = os.path.abspath(os.path.join(os.path.curdir, "model.onnx"))
 sample_input = torch.randn(1, 4)
-onnx_program = torch.onnx.export(
+torch.onnx.export(
     model,
-    args=(sample_input,), 
-    f="model.onnx", 
-    dynamo=True,
-    opset_version=19
+    sample_input,
+    export_model_path,
+    export_params=True,
+    opset_version=18
 )
-print("Model saved!")
+print("ONNX model saved to: {}".format(export_model_path))

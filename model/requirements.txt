@@ -3,4 +3,4 @@ scikit-learn
 torch
 pytorch-ignite
 numpy
-
+onnxscript

@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -31,11 +32,23 @@ class BinaryClassifier(nn.Module):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = BinaryClassifier().to(device)
 
-train_dataset = DNSExfiltrationDataset('../dataset/training.csv')
-val_dataset = DNSExfiltrationDataset('../dataset/validating.csv')
+train_path = "../dataset/features.csv"
+val_path = "../dataset/features_val.csv"
+
+train_scaler_path = "../dataset/training_scaler.npz"
+val_scaler_path = "../dataset/validating_scaler.npz"
+
+train_df = pd.read_csv(train_path)
+train_val = pd.read_csv(val_path)
+
+train_scaler = np.load(train_scaler_path)
+val_scaler = np.load(val_scaler_path)
+
+train_dataset = DNSExfiltrationDataset(train_df, train_scaler['mean'], train_scaler['std'])
+val_dataset = DNSExfiltrationDataset(train_val, val_scaler['mean'], val_scaler['std'])
 
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=64, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
 criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)

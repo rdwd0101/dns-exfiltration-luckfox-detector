@@ -92,3 +92,13 @@ def run_validation(engine):
 
 trainer.run(train_loader, max_epochs=10)
 torch.save(model.state_dict(), "model.pth")
+
+sample_input = torch.randn(1, 4)
+onnx_program = torch.onnx.export(
+    model,
+    args=(sample_input,), 
+    f="model.onnx", 
+    dynamo=True,
+    opset_version=19
+)
+print("Model saved!")

@@ -28,7 +28,23 @@ class DNSExfiltrationDataset(Dataset):
         """
         print("Opening {}".format(csv_file))
         self.data_frame = pd.read_csv(csv_file)
+        queries = self.data_frame.iloc[:, 1].values
+        features = np.array([self.extract_features(q) for q in queries])
+        self.mean = features.mean(axis=0)
+        self.std  = features.std(axis=0) + 1e-8  # to avoid division-by-zero
+        self.scaler_params_path = "{}scaler.npz".format(csv_file)
+        np.savez(self.scaler_params_path, mean=self.mean, std=self.std)
+        print("Successfully saved mean={} and std={} to {}".format(self.mean, self.std, self.scaler_params_path))
 
+    def extract_features(self, query):
+        features = [
+            float(length(query)),
+            float(shannon_entropy(query)),
+            float(digit_ratio(query)),
+            float(uppercase_ratio(query))
+        ]
+        return np.array(features)
+    
     def __len__(self):
         return len(self.data_frame)
 
@@ -41,12 +57,7 @@ class DNSExfiltrationDataset(Dataset):
 
         dns_string = "" if pd.isna(dns_string) else str(dns_string)
 
-        features = [
-            float(length(dns_string)),
-            float(shannon_entropy(dns_string)),
-            float(digit_ratio(dns_string)),
-            float(uppercase_ratio(dns_string))
-        ]
-        x_tensor = torch.tensor(features, dtype=torch.float32)
+        features = self.extract_features(dns_string)
+        x_tensor = torch.tensor((features - self.mean) / self.std, dtype=torch.float32) # z-score normalization
         y_tensor = torch.tensor(int(gt), dtype=torch.long)   # <- return tensor labels
         return x_tensor, y_tensor

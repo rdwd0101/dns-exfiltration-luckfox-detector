@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 from rknn.api import RKNN
@@ -17,7 +18,9 @@ if __name__ == '__main__':
     rknn = RKNN(verbose=False)
 
     print('--> Configuring model')
-    scaler = np.load('../dataset/training_scaler.npz')
+    parent_path = os.path.abspath(os.path.pardir)
+    scaler_path = os.path.join(parent_path, "dataset", "output", "training_scaler.npz")
+    scaler = np.load(scaler_path)
     mean, std = scaler['mean'], scaler['std']
     rknn.config(mean_values=[mean.tolist()], std_values=[std.tolist()], target_platform='rv1106')
     
@@ -34,7 +37,8 @@ if __name__ == '__main__':
     
     
     print('--> Building model')
-    ret = rknn.build(do_quantization=True, dataset="../dataset/quant_dataset.txt")
+    dataset_path = os.path.join(parent_path, "dataset", "output", "quant_dataset.txt")
+    ret = rknn.build(do_quantization=True, dataset=dataset_path)
     if ret != 0:
         print('Build model failed!')
         exit(ret)

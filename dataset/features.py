@@ -13,16 +13,16 @@ def shannon_entropy(query: str) -> float:
     return - sum(f * log(f, 2) for f in frequencies)
 
 def length(query: str) -> int:
-	return len(query)
+    return len(query)
 
 def uppercase_ratio(query: str) -> float:
     return sum(c.isupper() for c in query) / len(query)
 
 def extract_features(query: str):
-	features = [
+    features = [
 		float(length(query)),
 		float(shannon_entropy(query)),
 		float(digit_ratio(query)),
 		float(uppercase_ratio(query))
 	]
-	return np.array(features)
+    return np.array(features)

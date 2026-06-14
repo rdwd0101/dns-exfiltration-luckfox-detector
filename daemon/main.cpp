@@ -3,15 +3,45 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#include "features.hpp"
+#include "nn_model.hpp"
 
 #define DNS_PORT 53
 #define BUFFER_SIZE 1024
 
 const char* UPSTREAM_DNS = "8.8.8.8";
 
+void parse_dns_name(unsigned char* buffer, int header_offset, char* out_domain)
+{
+    int i = header_offset;
+    int out_index = 0;
+
+    while (buffer[i] != 0)
+    {
+        int label_len = buffer[i];
+
+        for (int j = 0; j < label_len; ++j)
+        {
+            out_domain[out_index++] = buffer[i++];
+        }
+
+        if (buffer[i] != 0)
+        {
+            out_domain[out_index++] = '.';
+        }
+        
+        i++;
+    }
+    
+    out_domain[out_index] = '\0';
+}
+
 int main()
 {
+    //
+    // init RKNN classifier for inference
+    //
+    DNSClassifier classifier = DNSClassifier("model.rknn");
+
     int local_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (local_fd < 0)
     {
@@ -39,16 +69,43 @@ int main()
 
     std::cout << "DNS Proxy listening on port " << DNS_PORT << "..." << std::endl;
 
-    uint8_t buffer[BUFFER_SIZE];
+    unsigned char buffer[BUFFER_SIZE];
     while (true)
     {
         sockaddr_in client_addr{};
         socklen_t client_len = sizeof(client_addr);
 
-        ssize_t req_len = recvfrom(local_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &client_len);
-
-        if (req_len < 0)
+        ssize_t req_len = recvfrom(local_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &client_len);        
+        
+        if (req_len < 12)
+        {
+            std::cerr << "A valid DNS header must be at least 12 bytes" << std::endl;
             continue;
+        }
+
+        int dns_header_len = 12;
+        char domain_name[256]; // Buffer to store the readable domain
+
+        parse_dns_name(buffer, dns_header_len, domain_name);
+
+        //std::string dns_query(domain_name);
+        std::string dns_query(domain_name);
+        std::cout << "Got query: " << dns_query << std::endl;
+
+        //
+        // Perform inference
+        //
+        bool is_exfiltration = classifier.run(dns_query);
+        if (is_exfiltration)
+        {
+            std::cout << "Warning: classifier detected possible exfiltration, terminating..." << std::endl;
+            break;
+        }
+        else
+        {
+            std::cout << "Classified query as a legitimate, proceeding to send DNS request to upstream..." << std::endl;
+            continue;
+        }
 
         sendto(upstream_fd, buffer, req_len, 0, (struct sockaddr*)&upstream_addr, sizeof(upstream_addr));
 

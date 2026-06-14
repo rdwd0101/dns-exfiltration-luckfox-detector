@@ -1,3 +1,6 @@
+#ifndef FEATURES_HPP
+#define FEATURES_HPP
+
 #include <string>
 #include <unordered_map>
 #include <cmath>
@@ -41,3 +44,4 @@ inline double uppercase_ratio(const std::string &s)
     for (unsigned char ch : s) if (std::isupper(ch)) ++count;
     return static_cast<double>(count) / s.size();
 }
+#endif

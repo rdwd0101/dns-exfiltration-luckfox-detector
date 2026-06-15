@@ -29,11 +29,11 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model = BinaryClassifier().to(device)
 
 parent_path = os.path.abspath(os.path.pardir)
-train_path = os.path.join(parent_path, "dataset/features.csv")
-val_path = os.path.join(parent_path, "dataset/features_val.csv")
+train_path = os.path.join(parent_path, "dataset", "output", "features.csv")
+val_path = os.path.join(parent_path, "dataset", "output", "features_val.csv")
 
-train_scaler_path = os.path.join(parent_path, "dataset/training_scaler.npz")
-val_scaler_path = os.path.join(parent_path, "dataset/validating_scaler.npz")
+train_scaler_path = os.path.join(parent_path, "dataset", "output", "training_scaler.npz")
+val_scaler_path = os.path.join(parent_path, "dataset", "output", "validating_scaler.npz")
 
 train_df = pd.read_csv(train_path)
 train_val = pd.read_csv(val_path)

@@ -29,7 +29,7 @@ scp ./model.rknn <luckfox_pico_user>@<luckfox_pico_address>:/<location>
 
 Logging library: [https://github.com/gabime/spdlog](https://github.com/gabime/spdlog)
 
-Bubnov, Yakov (2019), “DNS Tunneling Queries for Binary Classification”, Mendeley Data, V1, doi: 10.17632/mzn9hvdcxg.1
+The dataset is courtesy of Bubnov, Yakov (2019), “DNS Tunneling Queries for Binary Classification”, doi: 10.17632/mzn9hvdcxg.1
 
 ## License
 

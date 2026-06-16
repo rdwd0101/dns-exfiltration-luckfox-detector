@@ -4,6 +4,8 @@ C++ DNS proxy with on-device inference for Luckfox Pico Pro/Max for malicious DN
 
 Related MiTRE ATT&CK technique: [T1071.004](https://attack.mitre.org/techniques/T1071/004/).
 
+![Screenshot of daemon logs](/preview.png)
+
 ## Build
 
 ```

@@ -7,8 +7,9 @@ from torch.utils.data import DataLoader, TensorDataset
 from ignite.engine import Engine, Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import Accuracy, Loss
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
-from dataset import DNSExfiltrationDataset
 
 class BinaryClassifier(nn.Module):
     def __init__(self):
@@ -25,6 +26,8 @@ class BinaryClassifier(nn.Module):
         out = self.net(x)
         return out.view(-1)
 
+
+scaler = StandardScaler()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = BinaryClassifier().to(device)
 
@@ -32,20 +35,34 @@ parent_path = os.path.abspath(os.path.pardir)
 train_path = os.path.join(parent_path, "dataset", "output", "features.csv")
 val_path = os.path.join(parent_path, "dataset", "output", "features_val.csv")
 
-train_scaler_path = os.path.join(parent_path, "dataset", "output", "training_scaler.npz")
-val_scaler_path = os.path.join(parent_path, "dataset", "output", "validating_scaler.npz")
+df_train = pd.read_csv(train_path, header=None)
+df_val = pd.read_csv(val_path, header=None)
+df_all = pd.concat([df_train, df_val], ignore_index=True)
+
+X = df_all.iloc[:, :4].values
+y = df_all.iloc[:, 4].values
+
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, stratify=y, shuffle=True)
+
+scaler = StandardScaler()
+X_train_norm = scaler.fit_transform(X_train)
+X_val_norm = scaler.transform(X_val)
 
 train_df = pd.read_csv(train_path)
 train_val = pd.read_csv(val_path)
+train_features = torch.tensor(X_train_norm, dtype=torch.float32)
+train_labels = torch.tensor(y_train, dtype=torch.float32)
 
-train_scaler = np.load(train_scaler_path)
-val_scaler = np.load(val_scaler_path)
+val_features = torch.tensor(X_val_norm, dtype=torch.float32)
+val_labels = torch.tensor(y_val, dtype=torch.float32)
 
-train_dataset = DNSExfiltrationDataset(train_df, train_scaler['mean'], train_scaler['std'])
-val_dataset = DNSExfiltrationDataset(train_val, val_scaler['mean'], val_scaler['std'])
+train_dataset = TensorDataset(train_features, train_labels)
+val_dataset = TensorDataset(val_features, val_labels)
 
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
+BATCH_SIZE = 64
+
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)

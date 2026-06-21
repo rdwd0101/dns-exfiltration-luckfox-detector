@@ -27,8 +27,8 @@ namespace model
         rknn_tensor_mem* input_mem;
         rknn_tensor_mem* output_mem;
 
-        const float feature_mean[4] = { 124.892998f, 4.74524164f, 0.119730175f, 0.251572192f };
-        const float feature_std[4]  = { 95.664803f,   1.0889598f,  0.075192168f,  0.22094777f  };
+        const float feature_mean[DNS_CLASSIFIER_FEATURES_COUNT] = { 102.406350f, 4.41414519f, 0.0983941086f, 0.200272403f };
+        const float feature_std[DNS_CLASSIFIER_FEATURES_COUNT]  = { 96.4387864f, 1.18921331f, 0.0837316504f, 0.220689143f };
         
         std::string model_path;
 

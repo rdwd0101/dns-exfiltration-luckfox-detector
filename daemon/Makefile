@@ -1,10 +1,13 @@
-CC := ~/Projects/arm-rockchip830-linux-uclibcgnueabihf/bin/arm-rockchip830-linux-uclibcgnueabihf-c++
+CC := $(HOME)/Projects/arm-rockchip830-linux-uclibcgnueabihf/bin/arm-rockchip830-linux-uclibcgnueabihf-c++
 CXXFLAGS := -Wall -O2
 CPPFLAGS = -I$(SPDLOG_INC)
 SPDLOG_INC = ../third_party/spdlog/include
+RKNN_LIB_DIR = $(HOME)/Projects/rknn-toolkit2/rknpu2/runtime/Linux/librknn_api/armhf-uclibc/
 
-daemon: main.cpp features.hpp nn_model.hpp rknn_api.h
-	$(CC) $(CXXFLAGS) $(CPPFLAGS) -L. -lrknnmrt $^ -o daemon
+SRCS = main.cpp
+
+daemon: $(SRCS) features.hpp nn_model.hpp rknn_api.h
+	$(CC) $(CXXFLAGS) $(CPPFLAGS) $(SRCS) -L$(RKNN_LIB_DIR) -lrknnmrt -o daemon
 
 clean:
-	rm -f main
+	rm -f daemon

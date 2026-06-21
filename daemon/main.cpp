@@ -114,11 +114,12 @@ int main()
         if (is_exfiltration)
         {
             dns_queries_logger->warn("Warning: classifier detected possible exfiltration, query: {}", dns_query);
+            spdlog::warn("Warning: classifier detected possible exfiltration, query: {}", dns_query);
             continue;
         }
         else
         {
-            dns_queries_logger->debug("Classified query {} as a legitimate, proceeding to send DNS request to upstream...", dns_query);
+            spdlog::info("Classified query {} as a legitimate, proceeding to send DNS request to upstream...", dns_query);
             continue;
         }
 

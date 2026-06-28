@@ -1,6 +1,8 @@
-# dns-exfiltration-luckfox-detector
+# dns-exfiltration-detector
 
-C/C++ DNS proxy with on-device inference for Luckfox Pico Pro/Max for malicious DNS queries detection, logging and response.
+C/C++ DNS proxy with on-device inference for microcontrollers for malicious DNS queries detection, logging and response.
+
+Supported devices: Luckfox Pico Pro/Max, Raspberry Pi Pico 2 W.
 
 Related MiTRE ATT&CK technique: [T1071.004](https://attack.mitre.org/techniques/T1071/004/).
 

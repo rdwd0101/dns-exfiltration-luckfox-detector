@@ -3,59 +3,40 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <chrono>
+#include <array>
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/rotating_file_sink.h"
+
 #include "nn_model.hpp"
+#include "constants.hpp"
+#include "utils.hpp"
 
-#define DNS_PORT 53
-#define BUFFER_SIZE 1024
-#define DNS_QUERY_MINIMUM_LENGTH 12
-
-const auto max_log_size = 1048576 * 5;
-const auto max_log_files = 3;
-
-const char* UPSTREAM_DNS = "8.8.8.8";
-const char* MODEL_PATH = "model.rknn";
-
-void parse_dns_name(unsigned char* buffer, int header_offset, char* out_domain)
+namespace utils
 {
-    int i = header_offset;
-    int out_index = 0;
-
-    while (buffer[i] != 0)
+    std::shared_ptr<spdlog::logger> configure_logger()
     {
-        int label_len = buffer[i];
-
-        for (int j = 0; j < label_len; ++j)
-        {
-            out_domain[out_index++] = buffer[i++];
-        }
-
-        if (buffer[i] != 0)
-        {
-            out_domain[out_index++] = '.';
-        }
-        
-        i++;
+        auto dns_queries_logger = spdlog::rotating_logger_mt(
+            dns_exfiltration_detector::constants::SPDLOG_DNS_QUERIES_LOGGER_NAME,
+            dns_exfiltration_detector::constants::SPDLOG_DNS_QUERIES_LOGGER_FILENAME,
+            dns_exfiltration_detector::constants::SPDLOG_FILE_SIZE_MAX,
+            dns_exfiltration_detector::constants::SPDLOG_FILES_COUNT
+        );
+        dns_queries_logger->set_level(spdlog::level::debug);
+        spdlog::flush_every(std::chrono::seconds(1));
+        return dns_queries_logger;
     }
-    
-    out_domain[out_index] = '\0';
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    //
-    // configure logs
-    //
-    auto dns_queries_logger = spdlog::rotating_logger_mt("dns_queries_logger", "dns_queries_log.txt", max_log_size, max_log_files);
-    dns_queries_logger->set_level(spdlog::level::debug);
-    spdlog::flush_every(std::chrono::seconds(1));
+    auto dns_queries_logger = utils::configure_logger();
+    
     //
     // init RKNN classifier for inference
     //
     dns_queries_logger->info("Daemon started");
-    model::DNSClassifier classifier = model::DNSClassifier(MODEL_PATH);
+    auto classifier = dns_exfiltration_detector::model::DNSClassifier(dns_exfiltration_detector::constants::CLASSIFIER_MODEL_PATH);
 
     int local_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (local_fd < 0)
@@ -67,7 +48,7 @@ int main()
     sockaddr_in local_addr{};
     local_addr.sin_family = AF_INET;
     local_addr.sin_addr.s_addr = INADDR_ANY;
-    local_addr.sin_port = htons(DNS_PORT);
+    local_addr.sin_port = htons(dns_exfiltration_detector::constants::DNS_PORT);
 
     if (bind(local_fd, (struct sockaddr*)&local_addr, sizeof(local_addr)) < 0)
     {
@@ -79,47 +60,46 @@ int main()
     int upstream_fd = socket(AF_INET, SOCK_DGRAM, 0);
     sockaddr_in upstream_addr{};
     upstream_addr.sin_family = AF_INET;
-    upstream_addr.sin_addr.s_addr = inet_addr(UPSTREAM_DNS);
-    upstream_addr.sin_port = htons(DNS_PORT);
+    upstream_addr.sin_addr.s_addr = inet_addr(dns_exfiltration_detector::constants::UPSTREAM_DNS);
+    upstream_addr.sin_port = htons(dns_exfiltration_detector::constants::DNS_PORT);
 
-    spdlog::info("DNS Proxy listening on port {}...", DNS_PORT);
+    spdlog::info("DNS Proxy listening on port {}...", upstream_addr.sin_port);
 
-    unsigned char buffer[BUFFER_SIZE];
+    unsigned char buffer[dns_exfiltration_detector::constants::DNS_QUERY_BUFFER_SIZE];
+
     while (true)
     {
         sockaddr_in client_addr{};
         socklen_t client_len = sizeof(client_addr);
 
-        ssize_t req_len = recvfrom(local_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &client_len);        
+        ssize_t req_len = recvfrom(local_fd, buffer, dns_exfiltration_detector::constants::DNS_QUERY_BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &client_len);        
         
-        if (req_len < DNS_QUERY_MINIMUM_LENGTH)
+        if (req_len < dns_exfiltration_detector::constants::DNS_QUERY_MINIMUM_LENGTH)
         {
-            spdlog::error("A valid DNS header must be at least {} bytes, got: {}", DNS_QUERY_MINIMUM_LENGTH, req_len);
+            spdlog::error("A valid DNS header must be at least {} bytes, got: {}", dns_exfiltration_detector::constants::DNS_QUERY_MINIMUM_LENGTH, req_len);
             continue;
         }
 
-        int dns_header_len = 12;
-        char domain_name[256]; // Buffer to store the readable domain
-
-        parse_dns_name(buffer, dns_header_len, domain_name);
-
-        //std::string dns_query(domain_name);
-        std::string dns_query(domain_name);
-        spdlog::debug("Got query: {}", dns_query);
+        
+        
+        std::string dns_name;
+        dns_exfiltration_detector::utils::parse_dns_name(buffer, dns_name);
+        
+        spdlog::debug("Got query: {}", dns_name);
 
         //
         // Perform inference
         //
-        bool is_exfiltration = classifier.run(dns_query);
+        bool is_exfiltration = classifier.run(dns_name);
         if (is_exfiltration)
         {
-            dns_queries_logger->warn("Warning: classifier detected possible exfiltration, query: {}", dns_query);
-            spdlog::warn("Warning: classifier detected possible exfiltration, query: {}", dns_query);
+            dns_queries_logger->warn("Warning: classifier detected possible exfiltration, query: {}", dns_name);
+            spdlog::warn("Warning: classifier detected possible exfiltration, query: {}", dns_name);
             continue;
         }
         else
         {
-            spdlog::info("Classified query {} as a legitimate, proceeding to send DNS request to upstream...", dns_query);
+            spdlog::info("Classified query {} as a legitimate, proceeding to send DNS request to upstream...", dns_name);
             continue;
         }
 
@@ -128,7 +108,7 @@ int main()
         //
         // Receive response from upstream
         //
-        ssize_t res_len = recvfrom(upstream_fd, buffer, BUFFER_SIZE, 0, nullptr, nullptr);
+        ssize_t res_len = recvfrom(upstream_fd, buffer, dns_exfiltration_detector::constants::DNS_QUERY_BUFFER_SIZE, 0, nullptr, nullptr);
         if (res_len < 0)
             continue;
 

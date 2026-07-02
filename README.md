@@ -19,6 +19,8 @@ cmake --build <luckfox_pico>|<raspberry_pico2w>
 
 Set/unset ```BUILD_RPI_PICO2W``` and ```BUILD_LUCKFOX_PICO``` options inside of the root CMakeLists.txt file to build all or only selected binaries.
 
+Unset ```BUILD_COMMON_TESTS``` option to disable GTest unit-tests target building.
+
 ## Train model
 
 ```

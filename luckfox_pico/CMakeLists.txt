@@ -11,4 +11,8 @@ set(CMAKE_CXX_COMPILER "$ENV{HOME}/Projects/arm-rockchip830-linux-uclibcgnueabih
 add_executable(dns_exfiltration_luckfox_pico_daemon src/main.cpp)
 
 target_include_directories(dns_exfiltration_luckfox_pico_daemon PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include "${CMAKE_CURRENT_LIST_DIR}/../third_party/spdlog/include")
-target_compile_options(dns_exfiltration_luckfox_pico_daemon PUBLIC -Wall -O2 -I${RKNN_LIB_DIR} -lrknnmrt)
+
+target_compile_options(dns_exfiltration_luckfox_pico_daemon PUBLIC -Wall -O2)
+
+target_link_directories(dns_exfiltration_luckfox_pico_daemon PRIVATE "${RKNN_LIB_DIR}")
+target_link_libraries(dns_exfiltration_luckfox_pico_daemon PRIVATE "rknnmrt")

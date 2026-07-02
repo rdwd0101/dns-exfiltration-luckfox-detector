@@ -106,7 +106,7 @@ int main(int argc, char** argv)
         //
         // Receive response from upstream
         //
-        ssize_t res_len = recvfrom(upstream_fd, buffer, dns_exfiltration_detector::constants::DNS_QUERY_BUFFER_SIZE, 0, nullptr, nullptr);
+        size_t res_len = recvfrom(upstream_fd, buffer, dns_exfiltration_detector::constants::DNS_QUERY_BUFFER_SIZE, 0, nullptr, nullptr);
         if (res_len < 0)
             continue;
 

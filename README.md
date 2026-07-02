@@ -6,16 +6,18 @@ Supported devices: Luckfox Pico Pro/Max, Raspberry Pi Pico 2 W.
 
 Related MiTRE ATT&CK technique: [T1071.004](https://attack.mitre.org/techniques/T1071/004/).
 
-![Demo of daemon output](/preview.png)
+![Demo of Luckfox Pico daemon output](/preview.png)
 
 ## Build
 
 ```
 git submodule update --init --recursive
-cd daemon
-make
-scp ./daemon <luckfox_pico_user>@<luckfox_pico_address>:/<location>
+cmake -S . -B ./build
+cd build
+cmake --build <luckfox_pico>|<raspberry_pico2w>
 ```
+
+Set/unset ```BUILD_RPI_PICO2W``` and ```BUILD_LUCKFOX_PICO``` options inside of the root CMakeLists.txt file to build all or only selected binaries.
 
 ## Train model
 
@@ -23,13 +25,20 @@ scp ./daemon <luckfox_pico_user>@<luckfox_pico_address>:/<location>
 cd model
 pip install -r requirements.txt
 python ./train.py
+```
+
+Resulting model.onnx model can be then used for Luckfox Pico / Raspberry Pi Pico 2 W deployment.
+
+## Deploy model
+```
 python ./rknn2_convert.py ./model.onnx ./model.rknn
 scp ./model.rknn <luckfox_pico_user>@<luckfox_pico_address>:/<location>
 ```
+For Raspberry Pi Pico 2 W, tools such as [onnx2c](https://github.com/kraiskil/onnx2c) can be used.
 
 ## Acknowledgements
 
-Logging library: [https://github.com/gabime/spdlog](https://github.com/gabime/spdlog)
+Logging library for Luckfox Pico daemon: [spdlog](https://github.com/gabime/spdlog)
 
 The dataset is courtesy of Bubnov, Yakov (2019), “DNS Tunneling Queries for Binary Classification”, doi: 10.17632/mzn9hvdcxg.1
 

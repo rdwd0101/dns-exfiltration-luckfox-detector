@@ -1,3 +1,5 @@
+#ifndef CONSTANTS_HPP
+#define CONSTANTS_HPP
 #include <stdlib.h>
 
 namespace dns_exfiltration_detector
@@ -11,9 +13,11 @@ namespace dns_exfiltration_detector
 
         constexpr size_t SPDLOG_FILE_SIZE_MAX = 1048576 * 5;
         constexpr size_t SPDLOG_FILES_COUNT = 3;
-        constexpr char* SPDLOG_DNS_QUERIES_LOGGER_NAME = "dns_queries_logger";
-        constexpr char* SPDLOG_DNS_QUERIES_LOGGER_FILENAME = "dns_queries_log.txt";
-        constexpr char* UPSTREAM_DNS = "8.8.8.8";
-        constexpr char* CLASSIFIER_MODEL_PATH = "model.rknn";
+        
+        const char* SPDLOG_DNS_QUERIES_LOGGER_NAME = "dns_queries_logger";
+        const char* SPDLOG_DNS_QUERIES_LOGGER_FILENAME = "dns_queries_log.txt";
+        const char* UPSTREAM_DNS = "8.8.8.8";
+        const char* CLASSIFIER_MODEL_PATH = "model.rknn";
     }
 }
+#endif

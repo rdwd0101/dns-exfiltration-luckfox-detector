@@ -72,15 +72,13 @@ int main(int argc, char** argv)
         sockaddr_in client_addr{};
         socklen_t client_len = sizeof(client_addr);
 
-        ssize_t req_len = recvfrom(local_fd, buffer, dns_exfiltration_detector::constants::DNS_QUERY_BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &client_len);        
+        size_t req_len = recvfrom(local_fd, buffer, dns_exfiltration_detector::constants::DNS_QUERY_BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &client_len);        
         
         if (req_len < dns_exfiltration_detector::constants::DNS_QUERY_MINIMUM_LENGTH)
         {
             spdlog::error("A valid DNS header must be at least {} bytes, got: {}", dns_exfiltration_detector::constants::DNS_QUERY_MINIMUM_LENGTH, req_len);
             continue;
         }
-
-        
         
         std::string dns_name;
         dns_exfiltration_detector::utils::parse_dns_name(buffer, dns_name);
